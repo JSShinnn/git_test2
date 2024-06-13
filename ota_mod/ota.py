@@ -5,6 +5,7 @@ import json
 #import machine
 from time import sleep
 
+
 class OTAUpdater:
     """ This class handles OTA updates. It connects to the Wi-Fi, checks for updates, downloads and installs them."""
     def __init__(self, ssid, password, repo_url, filename):
