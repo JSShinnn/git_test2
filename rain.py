@@ -26,13 +26,25 @@ import urllib.request
 import subprocess
 
 
+
 #Log 설정
 ####################################################################################################################################
+# Ensure the directory exists
+log_directory = "/home/pi/mu_code/log"
+
+log_directory = os.path.join(log_directory)
+
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
+
+# Update the filename to include the log directory
+filename = os.path.join(log_directory, 'rain.log')
+
 #log settings
 rainLogFormatter = logging.Formatter('%(asctime)s,%(message)s')
 
 #handler settings
-rainLogHandler = handlers.TimedRotatingFileHandler(filename='rain.log', when='midnight', interval=1, encoding='utf-8')
+rainLogHandler = handlers.TimedRotatingFileHandler(filename=filename, when='midnight', interval=1, encoding='utf-8')
 rainLogHandler.setFormatter(rainLogFormatter)
 rainLogHandler.suffix = "%Y%m%d"
 
@@ -89,11 +101,10 @@ GPIO.setup(ledY_GPS, GPIO.OUT)
 GPIO.setup(ledR_Error, GPIO.OUT)
 GPIO.setup(ledB_Ex, GPIO.OUT)
 
-# set DIR
-image_dir = "./image"
 
-log_directory = "/home/pi/mu_code/log"
 
+
+before_Min=0
 
 # nfc = api.PN532()
 # nfc.setup(enable_logging=True)
@@ -110,7 +121,7 @@ _Error = ('Error')
 def send_restart(MacAddress, UUID):
     Now_Mode = _Ex
     checkMode()
-    current_date = datetime.datetime.now()
+    current_date = datetime.now()
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
     url = "http://devrg.gb-on.co.kr/raingauge/reboot"
     data = {
@@ -178,7 +189,7 @@ def send_macaddress(MacAddress):
     global UUID
     Now_Mode = _Ex
     checkMode()
-    current_date = datetime.datetime.now()  
+    current_date = datetime.now()  
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
     
     url = "http://devrg.gb-on.co.kr/raingauge/init"
@@ -254,7 +265,7 @@ def delete_old_logs(log_directory):
                 print(f"{filename} 파일이 삭제되었습니다.")
 
 def InitSys():
-        global log_directory
+        global log_directory, before_Min
         print("Init Sys....")
         Mode_state = _Init
         GPIO.output(ledG_Internet, True)   
@@ -273,7 +284,15 @@ def InitSys():
         Now_Mode = "Idle"
         checkMode()
         print("Finished Init Sys!!")
-        #delete_old_logs(log_directory)
+        delete_old_logs(log_directory)
+        
+        now = datetime.datetime.now()
+        before_Min = now.minute
+        
+        check_regist_device()
+        
+        # temp_MAC = get_mac_address('eth0')
+        # send_macaddress(temp_MAC)
         
 def checkMode():
         #Now_Mode = _Error
@@ -324,27 +343,44 @@ def check_Tick():
         rainLogger.info("Ticked")
         sleep(0.5)
 
-#저장된 값 확인
-Device_UUID = get_uuid()
-UUID = Device_UUID
-print("UUID=", Device_UUID)
+def check_midNight():
+    now = datetime.datetime.now()
+    # 자정인지 확인
+    if now.hour == 0 and now.minute == 0:
+        os.system('sudo reboot')
 
-if Device_UUID == '':
-    # eth0 인터페이스의 MAC 주소 가져오기
-    mac_address = get_mac_address('eth0')
-
-    if mac_address:
-        print("라즈베리 파이의 MAC 주소:", mac_address)
-        response = send_macaddress(mac_address)
-        write_uuid(UUID)
+def check_oneMinut():
+    global before_Min
+    now = datetime.datetime.now()
+    nowMinute = now.minute
+    
+    if not before_Min == nowMinute:
+        before_Min = nowMinute
+        return True
     else:
-        print("MAC 주소를 가져오는 데 문제가 있습니다.")
-        send_macaddress()
+        return False
+
+def check_regist_device():
+    #저장된 값 확인
+    Device_UUID = get_uuid()
+    UUID = Device_UUID
+    print("UUID=", Device_UUID)
+
+    if Device_UUID == '':
+        # eth0 인터페이스의 MAC 주소 가져오기
+        mac_address = get_mac_address('eth0')
+        if mac_address:
+            print("라즈베리 파이의 MAC 주소:", mac_address)
+            response = send_macaddress(mac_address)
+            write_uuid(UUID)
+        else:
+            print("MAC 주소를 가져오는 데 문제가 있습니다.")
+            send_macaddress()
 
 
 temp_MAC = get_mac_address('eth0')
 
-send_restart(temp_MAC,UUID)
+#send_restart(temp_MAC,UUID)
 
 InitSys()
 
@@ -371,34 +407,20 @@ while True:
         # GPIO.output(ledB_Ex, True)
         
         
-        if not CNT_num % 1000:
-            if not CNT_num % 60000000:
-                if not check_internet_connection():
-                    GPIO.output(ledG_Internet, False)
-                    
+        
+        check_midNight()
+        
+        if check_oneMinut():
             check_Tick()
-                                
-            if not CNT_num % 60000000:
-                check_Tick()
-                Sum = tick_CNT*0.2  
-                send_tick_data(temp_MAC,round(Sum,1))
-                #send_tick_data(temp_MAC,1.0)
-                CNT_num=0
-                tick_CNT=0
-            #print('.')
-            
-
+            if not check_internet_connection():
+                    GPIO.output(ledG_Internet, False)
+            check_Tick()
+            Sum = tick_CNT*0.2
+            send_tick_data(temp_MAC,round(Sum,1))
+            tick_CNT=0
+        
             Now_Mode = _Idle
             checkMode()
                 
         CNT_num += 1
         check_Tick()
-
-
-
-
-#ledG_Internet = 27
-#ledY_GPS = 22
-#ledR_Error = 26
-#ledB_Ex = 13
-#ledG_Standby= 19
