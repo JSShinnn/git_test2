@@ -31,14 +31,13 @@ import subprocess
 # Ensure the directory exists
 log_directory = "/home/pi/mu_code/log"
 
-#log_directory = os.path.join(log_directory)
+log_directory = os.path.join(log_directory)
 
 if not os.path.exists(log_directory):
     os.makedirs(log_directory)
 
 # Update the filename to include the log directory
 filename = os.path.join(log_directory, 'rain.log')
-
 
 #log settings
 rainLogFormatter = logging.Formatter('%(asctime)s,%(message)s')
@@ -81,7 +80,7 @@ UUID =''
 GPIO.setmode(GPIO.BCM)
 
 #rain 게이지
-GPIO.setup(rain, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(rain, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 #set LED
 GPIO.setup(ledG_Standby, GPIO.OUT)
@@ -102,10 +101,7 @@ _Error = ('Error')
 
 
 def InitSys():
-    
         global log_directory, before_Min, UUID, device_MAC, Now_Mode
-        
-        
         print("Init Sys....")
         Now_Mode = _Init
         GPIO.output(ledG_Internet, True)   
@@ -128,35 +124,23 @@ def InitSys():
         
         now = datetime.datetime.now()
         before_Min = now.minute
-        
+               
+        #UUID 가져오기
         UUID = get_uuid()
         print(UUID)
         
-        #UUID 가져오기
-        if UUID =='':
-            if not send_macaddress(device_MAC):
-                Now_Mode = _Error
-        else:
-            print("passed uuid check")
-            #integrity check
-            if not send_integrity(device_MAC):
-                if not send_integrity(device_MAC):
-                    if not send_integrity(device_MAC):
-                        print("Error integrity check!")
-                        Now_Mode = _Error
-        print("passed uuid and integrity check!")
-        #check_regist_device()
+        check_regist_device()
         
-        #check integrity(무결성)
-
+        #MAC 가져오기
+        get_mac_address('eth0')
         # temp_MAC = get_mac_address('eth0')
-        
+        # send_macaddress(temp_MAC)
 
-def send_integrity(MacAddress):
+def send_restart(MacAddress):
     global UUID, Now_Mode
     Now_Mode = _Ex
     checkMode()
-    current_date = datetime.datetime.now()
+    current_date = datetime.now()
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
     url = "http://devrg.gb-on.co.kr/raingauge/reboot"
     data = {
@@ -180,12 +164,11 @@ def send_integrity(MacAddress):
     if response.status_code == 200:
         rainLogger.info("success restart")
         print("Response is :", response.text)
-        return True
         #os.system('sudo reboot')
     else:
         print(response)
         print("Fail.")
-        return False
+    return response.text
 
 def send_tick_data(MacAddress, Value):
     global UUID, Now_Mode
