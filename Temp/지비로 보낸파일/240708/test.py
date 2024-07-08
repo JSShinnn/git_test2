@@ -133,7 +133,12 @@ def InitSys():
                         print("Error integrity check!")
                         Now_Mode = _Error
         print("passed uuid and integrity check!")
-        rainLogger.info("finished init")
+        rainLogger.info("inited")
+        #check_regist_device()
+        
+        #check integrity(무결성)
+
+        # temp_MAC = get_mac_address('eth0')
         
 
 def send_integrity(MacAddress):
@@ -275,7 +280,7 @@ def delete_old_logs(log_directory):
     current_date = datetime.datetime.now()
     print(current_date)
     # 3일 전 날짜 계산
-    three_days_ago = current_date - datetime.timedelta(days=2)
+    three_days_ago = current_date - datetime.timedelta(days=3)
     print("nowTime is : %d before 3day: %d",current_date, three_days_ago)
     
     # 디렉토리 내 모든 파일에 대해 반복
@@ -284,7 +289,6 @@ def delete_old_logs(log_directory):
         if os.path.isfile(filename):
             # 파일의 생성 시간 가져오기
             creation_time = datetime.datetime.fromtimestamp(os.path.getctime(filename))
-            print("creation_time is :",creation_time)
             # 만약 생성된 지 3일 이상이면 삭제
             if creation_time < three_days_ago:
                 os.remove(filename)
@@ -366,6 +370,8 @@ def check_oneMinut():
     else:
         return False
     
+
+
 def check_regist_device():
     global UUID, device_MAC
     if UUID == '':
@@ -373,6 +379,8 @@ def check_regist_device():
         print("라즈베리 파이의 MAC 주소:", device_MAC)
         response = send_macaddress()
         write_uuid(UUID)
+
+#send_restart(device_MAC)
 
 # 함수 안에서 실행하면, 값이 안올라옴
 device_MAC = get_mac_address('eth0')
