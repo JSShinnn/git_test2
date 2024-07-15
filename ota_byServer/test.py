@@ -89,7 +89,8 @@ _Idle = ('idle')
 _Ex = ('Ex')
 _Error = ('Error')
 
-sent_CNT=0
+
+sent_CNT=100
 
 def InitSys():
     
@@ -491,6 +492,7 @@ while True:
                     GPIO.output(ledG_Internet, True)
                 check_Tick()
                 Sum = tick_CNT*0.5
+                sent_CNT = 100
                 if not send_tick_data(device_MAC,round(Sum,1)):
                     print('1')
                     if not send_tick_data(device_MAC,round(Sum,1)):
@@ -499,10 +501,18 @@ while True:
                             print('3')
                             Now_Mode = _Error
                             continue
+                else:
+                    print('0')
                 tick_CNT=0
                 Now_Mode = _Idle
-                checkMode()   
-                    
+                checkMode()
+                
+            else:
+                print(sent_CNT)
+                sent_CNT -= 1
+                if sent_CNT == 0:
+                    GPIO.output(ledB_Standby, True)
+                
         else:
             GPIO.output(ledG_Internet, False)
             GPIO.output(ledB_Standby, False)
