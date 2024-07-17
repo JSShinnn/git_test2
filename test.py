@@ -89,7 +89,6 @@ _Idle = ('idle')
 _Ex = ('Ex')
 _Error = ('Error')
 
-sent_CNT=0
 
 def InitSys():
     
@@ -105,19 +104,6 @@ def InitSys():
         GPIO.output(ledG_Internet, False)   
         GPIO.output(ledR_Error, False)
 
-        if not check_internet_connection():
-            GPIO.output(ledG_Internet, False)
-        else:
-            GPIO.output(ledG_Internet, True)
-            
-        
-        if check_server_connection(): 
-            print("ota server Succ")
-            os.chdir('/home/pi/mu_code/')
-            check_ota()
-        else:
-            print("ota server fail")
-            
         delete_old_logs(log_directory)
         
         now = datetime.datetime.now()
@@ -125,23 +111,36 @@ def InitSys():
         
         UUID = get_uuid()
         print(UUID)
-        
-        #UUID 가져오기
-        if UUID =='':
-            if not send_macaddress():
-                Now_Mode = _Error
+
+        if not check_internet_connection():
+            GPIO.output(ledG_Internet, False)
+            Now_Mode = _Error
         else:
-            print("passed uuid check")
-            #integrity check
-            if not send_integrity(device_MAC):
+            GPIO.output(ledG_Internet, True)
+
+            if check_server_connection():
+                print("ota server Succ")
+                os.chdir('/home/pi/mu_code/')
+                check_ota()
+            else:
+                print("ota server fail")
+        
+            #UUID 가져오기
+            if UUID =='':
+                if not send_macaddress():
+                    Now_Mode = _Error
+            else:
+                print("passed uuid check")
+                #integrity check
                 if not send_integrity(device_MAC):
                     if not send_integrity(device_MAC):
-                        print("Error integrity check!")
-                        Now_Mode = _Error
-        print("passed uuid and integrity check!")
-        rainLogger.info("finished init")
-        
-        Now_Mode = _Idle
+                        if not send_integrity(device_MAC):
+                            print("Error integrity check!")
+                            Now_Mode = _Error
+            print("passed uuid and integrity check!")
+            rainLogger.info("finished init")
+            Now_Mode = _Idle
+            
         checkMode()
 
         
@@ -281,7 +280,10 @@ def check_internet_connection():
 def check_server_connection():
     try:
         #urllib.request.urlopen('http://devrg.gb-on.co.kr/raingauge', timeout=1)
-        urllib.request.urlopen('http://192.168.1.228:5000/update', timeout=1)
+        #사내망 접근시
+        #urllib.request.urlopen('http://192.168.1.228:5000/update', timeout=1)
+        #외부 접근시
+        urllib.request.urlopen('http://222.104.187.58:8756/update', timeout=1)
         return True
     except urllib.error.URLError:
         return False
@@ -308,6 +310,7 @@ def delete_old_logs(log_directory):
             if creation_time < three_days_ago:
                 os.remove(filename)
                 print(f"{filename} 파일이 삭제되었습니다.")
+    os.chdir('/home/pi/mu_code/')
         
 def checkMode():
         global Now_Mode
@@ -317,9 +320,11 @@ def checkMode():
                 #Before_Mode=Now_Mode
         elif Now_Mode == _Idle :
                 print("Idle")
+                GPIO.output(ledR_Error, False)
                 GPIO.output(ledB_Standby, True)     
         elif Now_Mode == _Ex :
                 print("Ex")
+                GPIO.output(ledR_Error, False)
                 GPIO.output(ledB_Standby, True)          
 
 def get_mac_address(interface='eth0'):
@@ -358,7 +363,6 @@ def get_version():
         content = file.read()
     data = json.loads(content)
     return data['version']
-
 
 def check_Tick():
     global tick_CNT, Now_Mode
@@ -422,13 +426,15 @@ def extract_zip(zip_filename, extract_to):
         zip_ref.extractall(extract_to)
 
 def check_for_update(server_url, current_version):
-    response = requests.get(f"{server_url}/check_update", params={'version': current_version})
+    global UUID, device_MAC
+    response = requests.get(f"{server_url}/check_update", params={'version': current_version, 'uuid':UUID,'mac': device_MAC})
     response.raise_for_status()
     print(response)
     return response.json()
 
 def check_ota():
-    server_url = 'http://192.168.1.228:5000'
+    server_url = 'http://222.104.187.58:8756'
+    #server_url = 'http://192.168.1.228:5000'
     current_version = get_version()
     zip_filename = 'test.zip'
     extract_to = ''#'update'
@@ -453,61 +459,51 @@ device_MAC = get_mac_address('eth0')
 InitSys()
 
 while True:
-        # if not check_internet_connection():
-        #     sleep(0.1)
-        #     if not check_internet_connection():
-        #         sleep(0.1)
-        #         if not check_internet_connection():
-        #             Now_Mode = _Error
-        #             checkMode()
-        #             GPIO.output(ledG_Internet, False)
-        #             GPIO.output(ledR_Error, True)
-        # else:
-        #     # 프로그램 종료
-        #     #subprocess.run(['killall', 'python3.9', 'test.py'])
-        #     # 프로그램 재실행
-        #     #subprocess.run(['python3', 'test.py'])
-        #     #subprocess.run(['sudo', 'reboot'])
-        #     GPIO.output(ledG_Internet, True)
-        #     GPIO.output(ledR_Error, False)
-        # #GPIO.output(ledR_Error, True)
-        # GPIO.output(ledB_Standby, False)
-        # GPIO.output(ledB_Ex, True)
-        #Now_Mode = _Error
-        
-        
         
         #자정체크 및 리부트
         check_midNight()
-        
-        
+
         if not Now_Mode == _Error:
             if check_oneMinut():
-                GPIO.output(ledB_Standby, False)
                 check_Tick()
                 if not check_internet_connection():
                     GPIO.output(ledG_Internet, False)
+                    Now_Mode = _Error
                 else:
                     GPIO.output(ledG_Internet, True)
-                check_Tick()
-                Sum = tick_CNT*0.5
-                if not send_tick_data(device_MAC,round(Sum,1)):
-                    print('1')
+                    GPIO.output(ledB_Standby, False)
+                    check_Tick()
+                    Sum = tick_CNT*0.5
                     if not send_tick_data(device_MAC,round(Sum,1)):
-                        print('2')
+                        print('1')
                         if not send_tick_data(device_MAC,round(Sum,1)):
-                            print('3')
-                            Now_Mode = _Error
-                            continue
+                            print('2')
+                            if not send_tick_data(device_MAC,round(Sum,1)):
+                                print('3')
+                                Now_Mode = _Error
+                                continue
+                    else:
+                        print('0')
                 tick_CNT=0
-                Now_Mode = _Idle
-                checkMode()   
-                    
+                checkMode()
         else:
             GPIO.output(ledG_Internet, False)
             GPIO.output(ledB_Standby, False)
             
+            if not check_internet_connection():
+                GPIO.output(ledG_Internet, False)
+            else:
+                GPIO.output(ledG_Internet, True)
+                Now_Mode = _Idle
+                checkMode()
+            
             if check_oneSec():
+                if not check_internet_connection():
+                    GPIO.output(ledG_Internet, False)
+                else:
+                    GPIO.output(ledG_Internet, True)
+                    Now_Mode = _Idle
+                
                 output_state = GPIO.input(ledR_Error)
                 if output_state == GPIO.LOW:
                     GPIO.output(ledR_Error, True)
