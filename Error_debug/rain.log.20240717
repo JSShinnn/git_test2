@@ -1,0 +1,4 @@
+2024-07-17 11:56:07,146, This is a test log message.
+2024-07-17 11:56:07,662, post integrit uuid:RG0557274584, mac:d8:3a:dd:6c:85:1b, {"resultCode":"S000","message":"단말기 재부팅 완료","data":{"equipUuid":"RG0557274584"}}
+2024-07-17 11:56:07,662, finished init
+2024-07-17 11:57:00,501, post rain value :0.0, {"resultCode":"S000","message":"분당 강우량 데이터 입력 성공"}

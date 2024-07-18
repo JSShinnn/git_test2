@@ -26,6 +26,7 @@ import subprocess
 
 import zipfile
 
+
 #Log 설정
 ####################################################################################################################################
 # Ensure the directory exists
@@ -268,12 +269,14 @@ def send_macaddress():
 #                 # print("internet-on")
 #                 GPIO.output(ledG_Internet, True)
                 
+num =1
 
 def check_internet_connection():
     try:
-        #urllib.request.urlopen('http://devrg.gb-on.co.kr/raingauge', timeout=1)
-        urllib.request.urlopen('https://www.google.com', timeout=1)
-        return True
+        response = os.system("ping -c 1 google.com > /dev/null 2>&1")
+        print(response)
+        rainLogger.info("ping")
+        return response == 0 
     except urllib.error.URLError:
         return False
 
