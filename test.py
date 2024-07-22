@@ -145,6 +145,22 @@ def InitSys():
         checkMode()
 
         
+def get_cpu_temperature():
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as file:
+            temp_str = file.read().strip()
+            temp_c = int(temp_str) / 1000.0  # 온도를 밀리도 단위에서 섭씨도로 변환
+            return temp_c
+    except FileNotFoundError:
+        print("Error: The temperature file was not found.")
+        return None
+    except IOError as e:
+        print(f"Error: An I/O error occurred while reading the temperature file: {e}")
+        return None
+    except ValueError as e:
+        print(f"Error: Could not convert the temperature value to an integer: {e}")
+        return None
+
 
 def send_integrity(MacAddress):
     global UUID, Now_Mode
@@ -259,15 +275,6 @@ def send_macaddress():
         rainLogger.info("post regist device mac:%s, %s" % (device_MAC, response.text))
         print("Fail.")
     return response.text
-
-# def checkInternet():
-#         ipaddress=socket.gethostbyname(socket.gethostname())
-#         if ipaddress=="127.0.0.1:5010/api/v1/collect_api/save_collect_data/":
-#                 print("internet-off")
-#                 GPIO.output(ledG_Internet, False)    
-#         else:
-#                 # print("internet-on")
-#                 GPIO.output(ledG_Internet, True)
                 
 num =1
 
@@ -342,11 +349,44 @@ def get_mac_address(interface='eth0'):
         print("MAC 주소를 가져오는 중 오류가 발생했습니다:", e)
         return None
 
+def initialize_info_file(filepath):
+    initial_data = {
+        "equipUuid": "",
+        "version": "1.0.1"
+    }
+    try:
+        with open(filepath, 'w') as file:
+            json.dump(initial_data, file)
+    except IOError as e:
+        print(f"Error: Unable to initialize the file: {e}")
+
 def get_uuid():
-    with open('/home/pi/mu_code/info.json', 'r') as file:
-        # 파일 내용 읽기
-        content = file.read()
-    data = json.loads(content)
+    filepath = '/home/pi/mu_code/info.json'
+    
+    try:
+        with open(filepath, 'r') as file:
+            content = file.read()
+    except FileNotFoundError:
+        print(f"Error: The file '{filepath}' was not found. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+    except IOError as e:
+        print(f"Error: An I/O error occurred while reading the file: {e}. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Error: JSON decoding failed: {e}. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
+    if 'equipUuid' not in data:
+        print("Error: 'equipUuid' key not found in the JSON data. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
     return data['equipUuid']
 
 def write_uuid(uuid):
@@ -361,10 +401,32 @@ def write_uuid(uuid):
         print("result is :", result)
 
 def get_version():
-    with open('/home/pi/mu_code/info.json', 'r') as file:
-        # 파일 내용 읽기
-        content = file.read()
-    data = json.loads(content)
+    filepath = '/home/pi/mu_code/info.json'
+    
+    try:
+        with open(filepath, 'r') as file:
+            content = file.read()
+    except FileNotFoundError:
+        print(f"Error: The file '{filepath}' was not found. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+    except IOError as e:
+        print(f"Error: An I/O error occurred while reading the file: {e}. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Error: JSON decoding failed: {e}. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
+    if 'version' not in data:
+        print("Error: 'version' key not found in the JSON data. Initializing file.")
+        initialize_info_file(filepath)
+        return None
+
     return data['version']
 
 def check_Tick():
@@ -468,6 +530,8 @@ while True:
 
         if not Now_Mode == _Error:
             if check_oneMinut():
+                cpu_temp = get_cpu_temperature()
+                print("cpu_temp is", round(cpu_temp,1))
                 check_Tick()
                 if not check_internet_connection():
                     GPIO.output(ledG_Internet, False)
