@@ -145,6 +145,22 @@ def InitSys():
         checkMode()
 
         
+def get_cpu_temperature():
+    try:
+        with open('/sys/class/thermal/thermal_zone0/temp', 'r') as file:
+            temp_str = file.read().strip()
+            temp_c = int(temp_str) / 1000.0  # 온도를 밀리도 단위에서 섭씨도로 변환
+            return temp_c
+    except FileNotFoundError:
+        print("Error: The temperature file was not found.")
+        return None
+    except IOError as e:
+        print(f"Error: An I/O error occurred while reading the temperature file: {e}")
+        return None
+    except ValueError as e:
+        print(f"Error: Could not convert the temperature value to an integer: {e}")
+        return None
+
 
 def send_integrity(MacAddress):
     global UUID, Now_Mode
@@ -514,6 +530,8 @@ while True:
 
         if not Now_Mode == _Error:
             if check_oneMinut():
+                cpu_temp = get_cpu_temperature()
+                print("cpu_temp is", round(cpu_temp,1))
                 check_Tick()
                 if not check_internet_connection():
                     GPIO.output(ledG_Internet, False)
