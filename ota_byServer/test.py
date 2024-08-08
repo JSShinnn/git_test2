@@ -168,7 +168,7 @@ def send_integrity(MacAddress):
     checkMode()
     current_date = datetime.datetime.now()
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
-    url = "http://devrg.gb-on.co.kr/raingauge/reboot"
+    url = "http://svcrg.gb-on.co.kr/raingauge/reboot"
     data = {
         'equipUuid' : UUID,
         'startDatetime': formatted_time,
@@ -204,7 +204,7 @@ def send_tick_data(MacAddress, Value):
     current_date = datetime.datetime.now()
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
     
-    url = "http://devrg.gb-on.co.kr/raingauge/rgsend"
+    url = "http://svcrg.gb-on.co.kr/raingauge/rgsend"
     
     data = {
         'equipUuid' : UUID,
@@ -246,7 +246,7 @@ def send_macaddress():
     current_date = datetime.datetime.now()  
     formatted_time = current_date.strftime("%Y-%m-%d %H:%M:%S")
     
-    url = "http://devrg.gb-on.co.kr/raingauge/init"
+    url = "http://svcrg.gb-on.co.kr/raingauge/init"
     data = {
         'startDatetime': formatted_time,
         'macaddress': device_MAC
@@ -289,7 +289,7 @@ def check_internet_connection():
 
 def check_server_connection():
     try:
-        #urllib.request.urlopen('http://devrg.gb-on.co.kr/raingauge', timeout=1)
+        #urllib.request.urlopen('http://svcrg.gb-on.co.kr/raingauge', timeout=1)
         #사내망 접근시
         #urllib.request.urlopen('http://192.168.1.228:5000/update', timeout=1)
         #외부 접근시
@@ -433,12 +433,14 @@ def check_Tick():
     global tick_CNT, Now_Mode
     #new version is GPIO.LOW
     if GPIO.input(rain) == GPIO.LOW:
-        tick_CNT += 1
-        Now_Mode = _Ex
-        checkMode()
-        print(tick_CNT,'Tick')
-        rainLogger.info("Ticked")
-        sleep(0.5)
+        sleep(0.2)
+        if GPIO.input(rain) == GPIO.LOW:
+            tick_CNT += 1
+            Now_Mode = _Ex
+            checkMode()
+            print(tick_CNT,'Tick')
+            rainLogger.info("Ticked")
+            sleep(0.5)
 
 def check_midNight():
     
