@@ -433,7 +433,7 @@ def check_Tick():
     global tick_CNT, Now_Mode
     #new version is GPIO.LOW
     if GPIO.input(rain) == GPIO.LOW:
-        sleep(0.2)
+        sleep(0.05)
         if GPIO.input(rain) == GPIO.LOW:
             tick_CNT += 1
             Now_Mode = _Ex
